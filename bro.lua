@@ -15,7 +15,7 @@ local IsMobileDevice = UserInputService.TouchEnabled and not UserInputService.Mo
  
 local AvUI = {}
 AvUI.__index = AvUI
-AvUI.Version = "1.0.0"
+AvUI.Version = "2.8.1"
 AvUI.Flags = {}
 AvUI._Windows = {}
  
@@ -684,11 +684,11 @@ local function MeasureText(text, size, maxWidth)
 end
  
 local IconSources = {
-	Material = "https://raw.githubusercontent.com/Skinny-yz/AvUI-Assets/main/icons/MaterialIcons.luau",
-	Lucide   = "https://raw.githubusercontent.com/Skinny-yz/AvUI-Assets/main/icons/LucideIcons.luau",
-	Phosphor = "https://raw.githubusercontent.com/Skinny-yz/AvUI-Assets/main/icons/Phosphor.luau",
-	["Phosphor-Filled"] = "https://raw.githubusercontent.com/Skinny-yz/AvUI-Assets/main/icons/Phosphor%20Filled.luau",
-	SF       = "https://raw.githubusercontent.com/Skinny-yz/AvUI-Assets/main/icons/SFSymbols.luau",
+	Material = "https://raw.githubusercontent.com/Skinny-yz/NullUI-Assets/main/icons/MaterialIcons.luau",
+	Lucide   = "https://raw.githubusercontent.com/Skinny-yz/NullUI-Assets/main/icons/LucideIcons.luau",
+	Phosphor = "https://raw.githubusercontent.com/Skinny-yz/NullUI-Assets/main/icons/Phosphor.luau",
+	["Phosphor-Filled"] = "https://raw.githubusercontent.com/Skinny-yz/NullUI-Assets/main/icons/Phosphor%20Filled.luau",
+	SF       = "https://raw.githubusercontent.com/Skinny-yz/NullUI-Assets/main/icons/SFSymbols.luau",
 }
  
 local IconCache = {}
@@ -7010,7 +7010,7 @@ fieldHolder.BackgroundTransparency = 0.92
 	jan:Add(rememberClick.MouseButton1Click:Connect(function()
 		remember = not remember
 		Tween(rememberSwitch, {
-BackgroundColor3 = remember and Color3.fromRGB(0, 212, 170) or Color3.fromRGB(50, 50, 50)}, 0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.InOut)
+BackgroundColor3 = remember and Color3.fromRGB(0, 212, 170) or Color3.fromRGB(50, 50, 50),, 0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.InOut)
 		Tween(rememberKnob, {
 BackgroundColor3 = remember and Color3.fromRGB(0, 0, 0) or Color3.fromRGB(240, 240, 240),
 			Position = remember and UDim2.new(1, -16, 0.5, 0) or UDim2.new(0, 2, 0.5, 0),
