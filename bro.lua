@@ -7010,7 +7010,7 @@ fieldHolder.BackgroundTransparency = 0.92
 	jan:Add(rememberClick.MouseButton1Click:Connect(function()
 		remember = not remember
 		Tween(rememberSwitch, {
-BackgroundColor3 = remember and Color3.fromRGB(0, 212, 170) or Color3.fromRGB(50, 50, 50),, 0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.InOut)
+BackgroundColor3 = remember and Color3.fromRGB(0, 212, 170) or Color3.fromRGB(50, 50, 50)}, 0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.InOut)
 		Tween(rememberKnob, {
 BackgroundColor3 = remember and Color3.fromRGB(0, 0, 0) or Color3.fromRGB(240, 240, 240),
 			Position = remember and UDim2.new(1, -16, 0.5, 0) or UDim2.new(0, 2, 0.5, 0),
