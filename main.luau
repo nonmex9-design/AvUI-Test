@@ -140,7 +140,9 @@ local AcrylicControllers = {}
 local CameraConnections = {}
 local AcrylicShuttingDown = false
  
-AvUI.Config = { Blur = true, MaxNotifications = 5 }
+AvUI.Config = { Blur = false, MaxNotifications = 5, Animations = true, Sounds = true }
+
+AvUI.Keybinds = {}
  
 local function DisconnectCameraSignals()
 	for i = #CameraConnections, 1, -1 do
@@ -525,22 +527,176 @@ end
  
 local Fonts = LoadFonts()
  
-AvUI.Theme = {
-Background     = Color3.fromRGB(12, 12, 12),
-Surface        = Color3.fromRGB(20, 20, 20),
-Text           = Color3.fromRGB(240, 240, 240),
-TextDim        = Color3.fromRGB(140, 140, 145),
-Accent         = Color3.fromRGB(0, 212, 170),
-Danger         = Color3.fromRGB(255, 80, 100),
-Font           = Fonts.SemiBold,
-FontRegular    = Fonts.Regular,
-MeasureFont    = Enum.Font.GothamSemibold,
-CornerRadius   = 10,
-CornerRadiusSm = 6,
-Margin         = 16,
-AnimFast       = 0.12,
-AnimSlow       = 0.28,
+local ThemeSlots = { "Background", "Surface", "Text", "TextDim", "Accent", "Danger" }
+
+local ThemeLibrary = {
+	Midnight = {
+		Background = Color3.fromRGB(12, 12, 12),
+		Surface    = Color3.fromRGB(20, 20, 20),
+		Text       = Color3.fromRGB(240, 240, 240),
+		TextDim    = Color3.fromRGB(140, 140, 145),
+		Accent     = Color3.fromRGB(0, 212, 170),
+		Danger     = Color3.fromRGB(255, 80, 100),
+	},
+	Snow = {
+		Background = Color3.fromRGB(240, 242, 245),
+		Surface    = Color3.fromRGB(252, 252, 254),
+		Text       = Color3.fromRGB(22, 22, 26),
+		TextDim    = Color3.fromRGB(105, 108, 115),
+		Accent     = Color3.fromRGB(0, 165, 130),
+		Danger     = Color3.fromRGB(215, 60, 80),
+	},
+	Blood = {
+		Background = Color3.fromRGB(16, 8, 10),
+		Surface    = Color3.fromRGB(26, 13, 16),
+		Text       = Color3.fromRGB(245, 235, 235),
+		TextDim    = Color3.fromRGB(158, 128, 132),
+		Accent     = Color3.fromRGB(220, 45, 70),
+		Danger     = Color3.fromRGB(255, 92, 100),
+	},
+	Ocean = {
+		Background = Color3.fromRGB(8, 12, 20),
+		Surface    = Color3.fromRGB(13, 19, 30),
+		Text       = Color3.fromRGB(228, 238, 250),
+		TextDim    = Color3.fromRGB(118, 138, 162),
+		Accent     = Color3.fromRGB(78, 168, 255),
+		Danger     = Color3.fromRGB(255, 92, 108),
+	},
+	Neon = {
+		Background = Color3.fromRGB(10, 6, 18),
+		Surface    = Color3.fromRGB(18, 10, 30),
+		Text       = Color3.fromRGB(240, 232, 252),
+		TextDim    = Color3.fromRGB(150, 128, 180),
+		Accent     = Color3.fromRGB(178, 82, 255),
+		Danger     = Color3.fromRGB(255, 82, 132),
+	},
+	Forest = {
+		Background = Color3.fromRGB(10, 16, 12),
+		Surface    = Color3.fromRGB(16, 24, 18),
+		Text       = Color3.fromRGB(232, 244, 236),
+		TextDim    = Color3.fromRGB(122, 148, 128),
+		Accent     = Color3.fromRGB(88, 200, 120),
+		Danger     = Color3.fromRGB(255, 96, 96),
+	},
 }
+
+local ActiveTheme = "Midnight"
+
+AvUI.Theme = {
+	Background     = ThemeLibrary.Midnight.Background,
+	Surface        = ThemeLibrary.Midnight.Surface,
+	Text           = ThemeLibrary.Midnight.Text,
+	TextDim        = ThemeLibrary.Midnight.TextDim,
+	Accent         = ThemeLibrary.Midnight.Accent,
+	Danger         = ThemeLibrary.Midnight.Danger,
+	Font           = Fonts.SemiBold,
+	FontRegular    = Fonts.Regular,
+	MeasureFont    = Enum.Font.GothamSemibold,
+	CornerRadius   = 10,
+	CornerRadiusSm = 6,
+	Margin         = 16,
+	AnimFast       = 0.12,
+	AnimSlow       = 0.28,
+}
+
+function AvUI:ListThemes()
+	local names = {}
+	for name in pairs(ThemeLibrary) do table.insert(names, name) end
+	table.sort(names)
+	return names
+end
+
+function AvUI:GetTheme()
+	return ActiveTheme
+end
+
+function AvUI:RegisterTheme(name, palette)
+	if type(name) ~= "string" or type(palette) ~= "table" then return false end
+	ThemeLibrary[name] = palette
+	return true
+end
+
+function AvUI:SetTheme(name)
+	local target = ThemeLibrary[name]
+	if not target then return false end
+	local old = ThemeLibrary[ActiveTheme]
+
+	local swaps = {}
+	for _, slot in ipairs(ThemeSlots) do
+		if old[slot] and target[slot] then
+			swaps[old[slot]:ToHex()] = target[slot]
+		end
+	end
+
+	for _, slot in ipairs(ThemeSlots) do
+		if target[slot] then AvUI.Theme[slot] = target[slot] end
+	end
+	ActiveTheme = name
+
+	local root = AvUI._Root
+	if not root then return true end
+
+	for _, item in ipairs(root:GetDescendants()) do
+		if item:IsA("GuiObject") then
+			local bg = swaps[item.BackgroundColor3:ToHex()]
+			if bg then item.BackgroundColor3 = bg end
+			local tc = swaps[item.TextColor3:ToHex()]
+			if tc then item.TextColor3 = tc end
+			if item:IsA("ImageLabel") or item:IsA("ImageButton") then
+				local ic = swaps[item.ImageColor3:ToHex()]
+				if ic then item.ImageColor3 = ic end
+			end
+		end
+		if item:IsA("UIStroke") then
+			local sc = swaps[item.Color:ToHex()]
+			if sc then item.Color = sc end
+		end
+	end
+
+	return true
+end
+
+local SoundCache = {}
+local LastSoundAt = {}
+local SoundUrls = {
+	Click        = "https://jewomia.pages.dev/Scripts/Universal/AvUI/Sounds/Click.mp3",
+	Notification = "https://jewomia.pages.dev/Scripts/Universal/AvUI/Sounds/Notification.mp3",
+}
+
+local function grabSound(name)
+	if SoundCache[name] then return SoundCache[name] end
+	local url = SoundUrls[name]
+	if not url then return nil end
+	if not (fn_customasset and fn_writefile and fn_isfile) then return nil end
+	EnsureAssetsFolder()
+	local path = ASSETS_FOLDER .. "/snd-" .. name .. ".mp3"
+	if not fn_isfile(path) then
+		local got, body = pcall(function() return game:HttpGet(url) end)
+		if not got or type(body) ~= "string" or #body < 64 then return nil end
+		pcall(fn_writefile, path, body)
+	end
+	local ok, asset = pcall(fn_customasset, path)
+	if not ok or not asset then return nil end
+	SoundCache[name] = asset
+	return asset
+end
+
+function AvUI:PlaySound(name)
+	if AvUI.Config.Sounds == false then return end
+	local now = os.clock()
+	if LastSoundAt[name] and now - LastSoundAt[name] < 0.08 then return end
+	LastSoundAt[name] = now
+	local id = grabSound(name)
+	if not id then return end
+	local snd = Instance.new("Sound")
+	snd.SoundId = id
+	snd.Volume = name == "Notification" and 0.35 or 0.2
+	snd.Parent = game:GetService("SoundService")
+	snd:Play()
+	task.delay(4, function()
+		if snd and snd.Parent then snd:Destroy() end
+	end)
+end
  
 local Z = {
 	Glass    = 0,
@@ -555,6 +711,12 @@ local Z = {
 }
  
 local function Tween(instance, props, duration, style, direction)
+	if AvUI.Config.Animations == false then
+		for k, v in pairs(props) do
+			pcall(function() instance[k] = v end)
+		end
+		return { Cancel = function() end, Play = function() end }
+	end
 	local t = TweenService:Create(
 		instance,
 		TweenInfo.new(
@@ -590,7 +752,7 @@ local function GlassLayer(parent, radius, transparency)
 	glass.Name = "Glass"
 	glass.Size = UDim2.fromScale(1, 1)
 	glass.BackgroundColor3 = Color3.new(1, 1, 1)
-	glass.BackgroundTransparency = transparency or 0.985
+	glass.BackgroundTransparency = 1
 	glass.BorderSizePixel = 0
 	glass.ZIndex = Z.Glass
 	glass.Parent = parent
@@ -684,11 +846,11 @@ local function MeasureText(text, size, maxWidth)
 end
  
 local IconSources = {
-	Material = "https://raw.githubusercontent.com/Skinny-yz/AvUI-Assets/main/icons/MaterialIcons.luau",
-	Lucide   = "https://raw.githubusercontent.com/Skinny-yz/AvUI-Assets/main/icons/LucideIcons.luau",
-	Phosphor = "https://raw.githubusercontent.com/Skinny-yz/AvUI-Assets/main/icons/Phosphor.luau",
-	["Phosphor-Filled"] = "https://raw.githubusercontent.com/Skinny-yz/AvUI-Assets/main/icons/Phosphor%20Filled.luau",
-	SF       = "https://raw.githubusercontent.com/Skinny-yz/AvUI-Assets/main/icons/SFSymbols.luau",
+	Material = "https://raw.githubusercontent.com/Skinny-yz/NullUI-Assets/main/icons/MaterialIcons.luau",
+	Lucide   = "https://raw.githubusercontent.com/Skinny-yz/NullUI-Assets/main/icons/LucideIcons.luau",
+	Phosphor = "https://raw.githubusercontent.com/Skinny-yz/NullUI-Assets/main/icons/Phosphor.luau",
+	["Phosphor-Filled"] = "https://raw.githubusercontent.com/Skinny-yz/NullUI-Assets/main/icons/Phosphor%20Filled.luau",
+	SF       = "https://raw.githubusercontent.com/Skinny-yz/NullUI-Assets/main/icons/SFSymbols.luau",
 }
  
 local IconCache = {}
@@ -702,7 +864,7 @@ local function LoadIconSource(source)
 	if IconLoading[source] then
 		local t0 = os.clock()
 		while IconLoading[source] and os.clock() - t0 < 10 do
-			task.wait()
+			task.wait(0.1)
 		end
 		return IconCache[source] or nil
 	end
@@ -867,6 +1029,102 @@ local function MakePopupBackdrop(onClose)
 	end)
 	return backdrop
 end
+
+local TipFrame, TipStroke, TipLabel
+
+function AvUI:HideTooltip()
+	if not TipFrame then return end
+	local frame, stroke, label = TipFrame, TipStroke, TipLabel
+	TipFrame, TipStroke, TipLabel = nil, nil, nil
+	Tween(frame, { BackgroundTransparency = 1 }, 0.1)
+	if stroke then Tween(stroke, { Transparency = 1 }, 0.1) end
+	if label then Tween(label, { TextTransparency = 1 }, 0.1) end
+	task.delay(0.14, function() if frame then frame:Destroy() end end)
+end
+
+function AvUI:ShowTooltip(anchor, text)
+	if not anchor or not anchor.Parent then return end
+	text = tostring(text or "")
+	if text == "" then return end
+	AvUI:HideTooltip()
+
+	local s = GetUIScale()
+	local view = ViewportSize()
+	local textW = MeasureText(text, 12, 260)
+	local w = textW + 18
+	local h = 26
+
+	local ap = anchor.AbsolutePosition
+	local asz = anchor.AbsoluteSize
+	local px = ap.X + asz.X / 2 - (w * s) / 2
+	local py = ap.Y + asz.Y + 8
+
+	if py + h * s > view.Y - 8 then py = ap.Y - h * s - 8 end
+	px = SafeClamp(px, 6, math.max(6, view.X - w * s - 6))
+	py = SafeClamp(py, 6, math.max(6, view.Y - h * s - 6))
+
+	local frame = Instance.new("Frame")
+	frame.Name = "Tooltip"
+	frame.BackgroundColor3 = AvUI.Theme.Surface
+	frame.BackgroundTransparency = 0.06
+	frame.BorderSizePixel = 0
+	frame.Size = UDim2.fromOffset(w, h)
+	frame.Position = UDim2.fromOffset(math.round(px / s), math.round(py / s))
+	frame.ZIndex = 950
+	frame.Parent = AvUI._Root
+	Corner(frame, 6)
+
+	local stroke = Stroke(frame, Color3.fromRGB(255, 255, 255), 1, 0.85)
+
+	local label = Instance.new("TextLabel")
+	label.BackgroundTransparency = 1
+	label.FontFace = AvUI.Theme.FontRegular
+	label.Text = text
+	label.TextColor3 = AvUI.Theme.Text
+	label.TextSize = 12
+	label.TextTransparency = 1
+	label.TextXAlignment = Enum.TextXAlignment.Center
+	label.Size = UDim2.fromScale(1, 1)
+	label.ZIndex = 951
+	label.Parent = frame
+
+	TipFrame, TipStroke, TipLabel = frame, stroke, label
+	Tween(label, { TextTransparency = 0 }, 0.14)
+end
+
+function AvUI:BindTooltip(anchor, text)
+	if not anchor then return end
+	anchor.MouseEnter:Connect(function()
+		AvUI:ShowTooltip(anchor, text)
+	end)
+	anchor.MouseLeave:Connect(function()
+		AvUI:HideTooltip()
+	end)
+end
+
+local function _AddTooltipImpl(self, opts)
+	opts = opts or {}
+	local hasDesc = opts.Description and opts.Description ~= ""
+	local height = hasDesc and 56 or 44
+	local card = BaseCard(self._page, height)
+	local textX = AddLeadingIcon(card, opts.Icon or "help-circle", height)
+	AddTitleDesc(card, textX, 60, opts.Text or "Info", opts.Description, height)
+
+	local hint = Instance.new("ImageLabel")
+	hint.BackgroundTransparency = 1
+	hint.Image = ResolveIcon("info")
+	hint.ImageColor3 = AvUI.Theme.TextDim
+	hint.Size = UDim2.fromOffset(15, 15)
+	hint.AnchorPoint = Vector2.new(1, 0.5)
+	hint.Position = UDim2.new(1, -16, 0.5, 0)
+	hint.ZIndex = Z.Content + 1
+	hint.Parent = card
+
+	AvUI:BindTooltip(hint, opts.Tip or opts.Description or opts.Text or "")
+	AvUI:BindTooltip(card, opts.Tip or opts.Text or "")
+
+	return { Instance = card, Destroy = function() card:Destroy() end }
+end
  
 LibJanitor:Add(UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if gameProcessed then return end
@@ -903,6 +1161,13 @@ local function GetNotifyHolder()
  
 	LibJanitor:Add(RunService.Heartbeat:Connect(function()
 		if not holder.Parent then return end
+		if #NotificationQueue == 0 then
+			local live = false
+			for _, c in ipairs(holder:GetChildren()) do
+				if c:IsA("GuiObject") and c.Visible then live = true break end
+			end
+			if not live then return end
+		end
 		local s = GetUIScale()
 		local view = ViewportSize()
 		holder.Size = UDim2.fromOffset(math.max(1, math.min(280, view.X / s - 40)), math.max(1, view.Y / s - 40))
@@ -964,6 +1229,7 @@ function AvUI:Notify(opts)
  
 	local holder = GetNotifyHolder()
 	AvUI._NotifyCounter = AvUI._NotifyCounter + 1
+	task.spawn(function() AvUI:PlaySound("Notification") end)
  
 	local dismiss
  
@@ -1212,6 +1478,17 @@ function AvUI:Notify(opts)
 	}
 end
  
+function AvUI:Toast(a, b)
+	if type(a) == "table" then
+		return self:Notify(a)
+	end
+	return self:Notify({
+		Title = "Notice",
+		Text = tostring(a or ""),
+		Duration = tonumber(b) or 3,
+	})
+end
+
 local function ComputeDialogCenter(anchorFrame)
 	local view = ViewportSize()
 	if not anchorFrame or anchorFrame.AbsoluteSize.X <= 0 then
@@ -1743,6 +2020,153 @@ backdrop.BackgroundTransparency = 0.6
 	return { Close = close }
 end
  
+function AvUI:LoadingScreen(opts)
+	opts = opts or {}
+	local title = tostring(opts.Title or "Loading")
+	local desc = opts.Description and tostring(opts.Description) or ""
+	local logoAsset = opts.Icon and ResolveIcon(opts.Icon) or ""
+	local minTime = tonumber(opts.MinDuration) or 0
+	local accent = opts.Accent or AvUI.Theme.Accent
+	local started = os.clock()
+	local closed = false
+
+	local backdrop = Instance.new("Frame")
+	backdrop.Name = "LoadingScreen"
+	backdrop.BackgroundColor3 = AvUI.Theme.Background
+	backdrop.BackgroundTransparency = 1
+	backdrop.BorderSizePixel = 0
+	backdrop.Size = UDim2.fromScale(1, 1)
+	backdrop.ZIndex = 9500
+	backdrop.Parent = AvUI._Root
+
+	local center = Instance.new("Frame")
+	center.AnchorPoint = Vector2.new(0.5, 0.5)
+	center.Position = UDim2.fromScale(0.5, 0.5)
+	center.BackgroundTransparency = 1
+	center.AutomaticSize = Enum.AutomaticSize.XY
+	center.Size = UDim2.fromOffset(0, 0)
+	center.ZIndex = 9501
+	center.Parent = backdrop
+
+	local scale = Instance.new("UIScale")
+	scale.Scale = 0.9
+	scale.Parent = center
+
+	local inner = Instance.new("Frame")
+	inner.BackgroundTransparency = 1
+	inner.AutomaticSize = Enum.AutomaticSize.Y
+	inner.Size = UDim2.fromOffset(320, 0)
+	inner.ZIndex = 9501
+	inner.Parent = center
+
+	local layout = Instance.new("UIListLayout")
+	layout.FillDirection = Enum.FillDirection.Vertical
+	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	layout.VerticalAlignment = Enum.VerticalAlignment.Center
+	layout.Padding = UDim.new(0, 10)
+	layout.Parent = inner
+
+	if logoAsset ~= "" then
+		local box = Instance.new("Frame")
+		box.BackgroundColor3 = accent
+		box.BackgroundTransparency = 0.88
+		box.BorderSizePixel = 0
+		box.Size = UDim2.fromOffset(64, 64)
+		box.LayoutOrder = 1
+		box.ZIndex = 9502
+		box.Parent = inner
+		Corner(box, 16)
+		Stroke(box, accent, 1, 0.6)
+
+		local logo = Instance.new("ImageLabel")
+		logo.BackgroundTransparency = 1
+		logo.Image = logoAsset
+		logo.ImageColor3 = accent
+		logo.Size = UDim2.fromOffset(34, 34)
+		logo.AnchorPoint = Vector2.new(0.5, 0.5)
+		logo.Position = UDim2.fromScale(0.5, 0.5)
+		logo.ZIndex = 9503
+		logo.Parent = box
+	end
+
+	local titleLbl = Instance.new("TextLabel")
+	titleLbl.BackgroundTransparency = 1
+	titleLbl.FontFace = AvUI.Theme.Font
+	titleLbl.Text = title
+	titleLbl.TextColor3 = AvUI.Theme.Text
+	titleLbl.TextTransparency = 1
+	titleLbl.TextSize = 22
+	titleLbl.AutomaticSize = Enum.AutomaticSize.X
+	titleLbl.Size = UDim2.fromOffset(0, 28)
+	titleLbl.LayoutOrder = 2
+	titleLbl.ZIndex = 9502
+	titleLbl.Parent = inner
+
+	local descLbl
+	if desc ~= "" then
+		descLbl = Instance.new("TextLabel")
+		descLbl.BackgroundTransparency = 1
+		descLbl.FontFace = AvUI.Theme.FontRegular
+		descLbl.Text = desc
+		descLbl.TextColor3 = AvUI.Theme.TextDim
+		descLbl.TextTransparency = 1
+		descLbl.TextSize = 13
+		descLbl.TextWrapped = true
+		descLbl.Size = UDim2.fromOffset(280, 18)
+		descLbl.LayoutOrder = 3
+		descLbl.ZIndex = 9502
+		descLbl.Parent = inner
+	end
+
+	local track = Instance.new("Frame")
+	track.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	track.BackgroundTransparency = 0.9
+	track.BorderSizePixel = 0
+	track.Size = UDim2.fromOffset(220, 4)
+	track.LayoutOrder = 4
+	track.ZIndex = 9502
+	track.Parent = inner
+	Corner(track, 2)
+
+	local fill = Instance.new("Frame")
+	fill.BackgroundColor3 = accent
+	fill.BorderSizePixel = 0
+	fill.Size = UDim2.fromScale(0, 1)
+	fill.ZIndex = 9503
+	fill.Parent = track
+	Corner(fill, 2)
+
+	Tween(backdrop, { BackgroundTransparency = 0.08 }, 0.32)
+	Tween(scale, { Scale = 1 }, 0.45, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+	Tween(titleLbl, { TextTransparency = 0 }, 0.35)
+	if descLbl then Tween(descLbl, { TextTransparency = 0 }, 0.4) end
+
+	local api = { Instance = backdrop, Fill = fill, Title = titleLbl, Description = descLbl }
+
+	function api:SetProgress(value)
+		local alpha = math.clamp(tonumber(value) or 0, 0, 1)
+		Tween(fill, { Size = UDim2.fromScale(alpha, 1) }, 0.2)
+	end
+
+	function api:SetStatus(text)
+		if descLbl then descLbl.Text = tostring(text or "") end
+	end
+
+	function api:Close()
+		if closed then return end
+		closed = true
+		local extra = minTime - (os.clock() - started)
+		if extra > 0 then task.wait(extra) end
+		Tween(scale, { Scale = 0.94 }, 0.2, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
+		Tween(backdrop, { BackgroundTransparency = 1 }, 0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
+		Tween(titleLbl, { TextTransparency = 1 }, 0.2)
+		if descLbl then Tween(descLbl, { TextTransparency = 1 }, 0.2) end
+		task.delay(0.3, function() backdrop:Destroy() end)
+	end
+
+	return api
+end
+
 local DRAG_SMOOTH_SPEED = 22
  
 local function SetupSmoothDrag(frame, handle, janitor)
@@ -1919,14 +2343,21 @@ local DRAG_THRESHOLD = 6
  
 local function BaseCard(parent, height)
 	local card = Instance.new("Frame")
-	card.BackgroundColor3 = Color3.new(1, 1, 1)
-	card.BackgroundTransparency = 0.95
+	card.BackgroundColor3 = Color3.fromRGB(26, 26, 26)
+	card.BackgroundTransparency = 0.55
 	card.BorderSizePixel = 0
 	card.Size = UDim2.new(1, 0, 0, height or 44)
 	card.ZIndex = Z.Content
 	card.Parent = parent
 	Corner(card, AvUI.Theme.CornerRadiusSm)
-	Stroke(card, Color3.fromRGB(255, 255, 255), 1, 0.93)
+
+	local cardStroke = Instance.new("UIStroke")
+	cardStroke.Color = Color3.fromRGB(51, 51, 51)
+	cardStroke.Thickness = 1
+	cardStroke.Transparency = 0.4
+	cardStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	cardStroke.Parent = card
+
 	return card
 end
  
@@ -2082,6 +2513,10 @@ Window.__index = Window
  
 local Tab = {}
 Tab.__index = Tab
+
+function Tab:AddTooltip(opts)
+	return _AddTooltipImpl(self, opts)
+end
  
 function AvUI:CreateWindow(opts)
 	opts = opts or {}
@@ -2113,7 +2548,58 @@ function AvUI:CreateWindow(opts)
 	main.ZIndex = Z.Window
 	main.Parent = root
 	Corner(main, AvUI.Theme.CornerRadius)
-	Stroke(main, Color3.fromRGB(255, 255, 255), 1, 0.94)
+
+	local bodyGrad = Instance.new("UIGradient")
+	bodyGrad.Rotation = 36
+	bodyGrad.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0.000, Color3.fromRGB(72, 72, 72)),
+		ColorSequenceKeypoint.new(0.220, Color3.fromRGB(18, 18, 18)),
+		ColorSequenceKeypoint.new(0.500, Color3.fromRGB(24, 24, 24)),
+		ColorSequenceKeypoint.new(0.780, Color3.fromRGB(18, 18, 18)),
+		ColorSequenceKeypoint.new(1.000, Color3.fromRGB(72, 72, 72)),
+	})
+	bodyGrad.Parent = main
+
+	local shineA = Instance.new("UIStroke")
+	shineA.Name = "ShineA"
+	shineA.Thickness = 3
+	shineA.Color = Color3.fromRGB(26, 26, 26)
+	shineA.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	shineA.Parent = main
+
+	local shineAGrad = Instance.new("UIGradient")
+	shineAGrad.Rotation = -130
+	shineAGrad.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0.000, 0),
+		NumberSequenceKeypoint.new(0.650, 0.35),
+		NumberSequenceKeypoint.new(1.000, 1),
+	})
+	shineAGrad.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0.000, Color3.fromRGB(255, 255, 255)),
+		ColorSequenceKeypoint.new(1.000, Color3.fromRGB(16, 16, 16)),
+	})
+	shineAGrad.Parent = shineA
+
+	local shineB = Instance.new("UIStroke")
+	shineB.Name = "ShineB"
+	shineB.Thickness = 3
+	shineB.Color = Color3.fromRGB(26, 26, 26)
+	shineB.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	shineB.Parent = main
+
+	local shineBGrad = Instance.new("UIGradient")
+	shineBGrad.Rotation = 30
+	shineBGrad.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0.000, 0),
+		NumberSequenceKeypoint.new(0.650, 0.35),
+		NumberSequenceKeypoint.new(1.000, 1),
+	})
+	shineBGrad.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0.000, Color3.fromRGB(255, 255, 255)),
+		ColorSequenceKeypoint.new(1.000, Color3.fromRGB(16, 16, 16)),
+	})
+	shineBGrad.Parent = shineB
+
 	GlassLayer(main, AvUI.Theme.CornerRadius, 0.96)
  
 	local topbar = Instance.new("Frame")
@@ -7010,7 +7496,7 @@ fieldHolder.BackgroundTransparency = 0.92
 	jan:Add(rememberClick.MouseButton1Click:Connect(function()
 		remember = not remember
 		Tween(rememberSwitch, {
-BackgroundColor3 = remember and Color3.fromRGB(0, 212, 170) or Color3.fromRGB(50, 50, 50),, 0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.InOut)
+BackgroundColor3 = remember and Color3.fromRGB(0, 212, 170) or Color3.fromRGB(50, 50, 50)}, 0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.InOut)
 		Tween(rememberKnob, {
 BackgroundColor3 = remember and Color3.fromRGB(0, 0, 0) or Color3.fromRGB(240, 240, 240),
 			Position = remember and UDim2.new(1, -16, 0.5, 0) or UDim2.new(0, 2, 0.5, 0),
@@ -7996,6 +8482,161 @@ function Tab:AddSection(textOrOpts, maybeIcon)
 		Destroy = function() holder:Destroy() end,
 	}
 end
+
+function Tab:AddTag(opts)
+	opts = opts or {}
+	local text = tostring(opts.Text or "NEW")
+	local color = opts.Color or AvUI.Theme.Accent
+
+	local holder = Instance.new("Frame")
+	holder.Name = "TagRow"
+	holder.BackgroundTransparency = 1
+	holder.Size = UDim2.new(1, 0, 0, 24)
+	holder.ZIndex = Z.Content
+	holder.Parent = self._page
+
+	local w = MeasureText(text, 11, 200) + 20
+	if w < 44 then w = 44 end
+
+	local pill = Instance.new("Frame")
+	pill.Name = "Tag"
+	pill.BackgroundColor3 = color
+	pill.BackgroundTransparency = 0.82
+	pill.BorderSizePixel = 0
+	pill.Size = UDim2.fromOffset(w, 22)
+	pill.Position = UDim2.new(0, 0, 0, 1)
+	pill.ZIndex = Z.Content + 1
+	pill.Parent = holder
+	Corner(pill, 11)
+	Stroke(pill, color, 1, 0.7)
+
+	local lbl = Instance.new("TextLabel")
+	lbl.BackgroundTransparency = 1
+	lbl.FontFace = AvUI.Theme.Font
+	lbl.Text = text
+	lbl.TextColor3 = color
+	lbl.TextSize = 11
+	lbl.Size = UDim2.fromScale(1, 1)
+	lbl.ZIndex = Z.Content + 2
+	lbl.Parent = pill
+
+	return {
+		Instance = holder,
+		Pill = pill,
+		SetText = function(_, v)
+			lbl.Text = tostring(v)
+			local nw = MeasureText(lbl.Text, 11, 200) + 20
+			if nw < 44 then nw = 44 end
+			pill.Size = UDim2.fromOffset(nw, 22)
+		end,
+		SetColor = function(_, c)
+			pill.BackgroundColor3 = c
+			lbl.TextColor3 = c
+			local st = pill:FindFirstChildOfClass("UIStroke")
+			if st then st.Color = c end
+		end,
+		Destroy = function() holder:Destroy() end,
+	}
+end
+
+function Tab:AddCollapsible(opts)
+	opts = opts or {}
+	local title = opts.Text or "Section"
+	local open = opts.Default ~= false
+
+	local wrap = Instance.new("Frame")
+	wrap.Name = "Collapsible"
+	wrap.BackgroundTransparency = 1
+	wrap.Size = UDim2.new(1, 0, 0, 34)
+	wrap.AutomaticSize = Enum.AutomaticSize.Y
+	wrap.ZIndex = Z.Content
+	wrap.Parent = self._page
+
+	local header = Instance.new("TextButton")
+	header.Name = "Head"
+	header.Text = ""
+	header.AutoButtonColor = false
+	header.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	header.BackgroundTransparency = 0.96
+	header.BorderSizePixel = 0
+	header.Size = UDim2.new(1, 0, 0, 34)
+	header.ZIndex = Z.Content
+	header.Parent = wrap
+	Corner(header, AvUI.Theme.CornerRadiusSm)
+	Stroke(header, Color3.fromRGB(255, 255, 255), 1, 0.92)
+
+	local arrow = Instance.new("ImageLabel")
+	arrow.BackgroundTransparency = 1
+	arrow.Image = ResolveIcon("chevron-down")
+	arrow.ImageColor3 = AvUI.Theme.TextDim
+	arrow.Size = UDim2.fromOffset(14, 14)
+	arrow.AnchorPoint = Vector2.new(1, 0.5)
+	arrow.Position = UDim2.new(1, -14, 0.5, 0)
+	arrow.Rotation = open and 0 or -90
+	arrow.ZIndex = Z.Content + 1
+	arrow.Parent = header
+
+	local titleLbl = Instance.new("TextLabel")
+	titleLbl.BackgroundTransparency = 1
+	titleLbl.FontFace = AvUI.Theme.Font
+	titleLbl.Text = title
+	titleLbl.TextColor3 = AvUI.Theme.Text
+	titleLbl.TextSize = 14
+	titleLbl.TextXAlignment = Enum.TextXAlignment.Left
+	titleLbl.Position = UDim2.fromOffset(14, 0)
+	titleLbl.Size = UDim2.new(1, -42, 1, 0)
+	titleLbl.ZIndex = Z.Content + 1
+	titleLbl.Parent = header
+
+	local body = Instance.new("Frame")
+	body.Name = "Body"
+	body.BackgroundTransparency = 1
+	body.Position = UDim2.fromOffset(0, 42)
+	body.Size = UDim2.new(1, 0, 0, 0)
+	body.AutomaticSize = Enum.AutomaticSize.Y
+	body.Visible = open
+	body.ZIndex = Z.Content
+	body.Parent = wrap
+
+	local page = Instance.new("Frame")
+	page.Name = "Page"
+	page.BackgroundTransparency = 1
+	page.Size = UDim2.new(1, 0, 0, 0)
+	page.AutomaticSize = Enum.AutomaticSize.Y
+	page.ZIndex = Z.Content
+	page.Parent = body
+
+	local pageLayout = Instance.new("UIListLayout")
+	pageLayout.Padding = UDim.new(0, 8)
+	pageLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	pageLayout.Parent = page
+
+	header.MouseButton1Click:Connect(function()
+		open = not open
+		body.Visible = open
+		Tween(arrow, { Rotation = open and 0 or -90 }, 0.18)
+	end)
+	header.MouseEnter:Connect(function()
+		Tween(header, { BackgroundTransparency = 0.9 }, 0.15)
+	end)
+	header.MouseLeave:Connect(function()
+		Tween(header, { BackgroundTransparency = 0.96 }, 0.15)
+	end)
+
+	local mute = setmetatable({ _RegisterSearchable = function() end }, { __index = self._window })
+
+	local sub = setmetatable({
+		Name = title,
+		_page = page,
+		_group = page,
+		_window = mute,
+		_janitor = self._janitor,
+		Instance = wrap,
+		_select = function() end,
+	}, Tab)
+
+	return sub
+end
  
 function Tab:AddDivider()
 	local holder = Instance.new("Frame")
@@ -8687,6 +9328,7 @@ function Tab:AddButton(opts)
 		Tween(chev, { ImageColor3 = AvUI.Theme.TextDim, Position = UDim2.new(1, -16, 0.5, 0) }, 0.15)
 	end)
 	click.MouseButton1Click:Connect(function()
+		AvUI:PlaySound("Click")
 		Tween(card, { BackgroundTransparency = 0.8 }, 0.08)
 		Tween(chev, { ImageColor3 = AvUI.Theme.Accent }, 0.08)
 		task.delay(0.08, function()
@@ -10039,6 +10681,7 @@ function Tab:AddToggle(opts)
 	local locked = opts.Locked == true
 	click.MouseButton1Click:Connect(function()
 		if locked then return end
+		AvUI:PlaySound("Click")
 		Tween(switchScale, { Scale = 0.91 }, 0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 		task.delay(0.08, function()
 			if switchScale.Parent then
@@ -10316,6 +10959,7 @@ knob.BackgroundTransparency = 0
 			return
 		end
 		releaseSlider()
+		AvUI:PlaySound("Click")
 		targetAlpha = SafeAlpha(value, min, max)
 		visualAlpha = targetAlpha
 		setVisual(targetAlpha, true, 0.12)
@@ -10487,6 +11131,7 @@ function Tab:AddDropdown(opts)
 	local function openPopup()
 		if popupOpen then return end
 		popupOpen = true
+		AvUI:PlaySound("Click")
 		RegisterPopupOpen(closePopup)
 		Tween(chevron, { Rotation = 180 }, 0.15)
  
@@ -11446,6 +12091,17 @@ function Tab:AddKeybind(opts)
  
 			currentKey = input.KeyCode
 			stopListening()
+			for flag, entry in pairs(AvUI.Keybinds) do
+				if flag ~= opts.Flag and entry.Get() == currentKey then
+					AvUI:Notify({
+						Title = "Keybind Conflict",
+						Text  = currentKey.Name .. " is already bound to " .. tostring(entry.Label) .. ".",
+						Type  = "warning",
+						Duration = 4,
+					})
+					break
+				end
+			end
 			if opts.Callback then task.spawn(opts.Callback, currentKey, "bind") end
 			fireChanged(currentKey)
 		end)
@@ -11467,7 +12123,7 @@ function Tab:AddKeybind(opts)
 	card.MouseEnter:Connect(function() Tween(card, { BackgroundTransparency = 0.93 }, 0.15) end)
 	card.MouseLeave:Connect(function() Tween(card, { BackgroundTransparency = 0.96 }, 0.15) end)
  
-	return RegisterFlag(opts, {
+	local api = RegisterFlag(opts, {
 		Instance = card,
 		Set = function(_, key, silent)
 			currentKey = key
@@ -11478,6 +12134,12 @@ function Tab:AddKeybind(opts)
 		OnChanged = function(_, fn) return signal.Connect(fn) end,
 		Destroy = function() stopListening(); signal.Clear(); card:Destroy() end,
 	}, "Keybind")
+
+	if opts.Flag then
+		AvUI.Keybinds[opts.Flag] = { Get = api.Get, Label = opts.Text or opts.Flag }
+	end
+
+	return api
 end
  
 local ConsoleColors = {
